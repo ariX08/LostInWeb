@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="LostInWeb — Instantly get lost in a carefully curated random interesting website. Pure discovery and mild chaos." />
+  <title>LostInWeb — Get Lost</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Background effects -->
+  <div class="bg-gradient" aria-hidden="true"></div>
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div class="noise-overlay" aria-hidden="true"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo" id="logo" tabindex="0" role="button" aria-label="LostInWeb home">
+      <span class="logo-text">LostInWeb</span>
+      <span class="logo-glitch" aria-hidden="true">LostInWeb</span>
+    </div>
+    <div class="header-controls">
+      <div class="category-filters" id="categoryFilters" role="group" aria-label="Filter by category">
+        <!-- chips injected by JS -->
+      </div>
+      <button class="icon-btn" id="historyBtn" aria-label="Open history" title="History">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M12 8v4l3 3" />
+          <circle cx="12" cy="12" r="9" />
+        </svg>
+      </button>
+      <button class="icon-btn" id="muteBtn" aria-label="Toggle sound" title="Mute">
+        <svg id="muteIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M11 5L6 9H2v6h4l5 4V5z" />
+          <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" />
+        </svg>
+      </button>
+      <button class="icon-btn" id="settingsBtn" aria-label="Settings" title="Settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="hero">
+      <p class="tagline">A digital curiosity cabinet</p>
+      <h1 class="title">Where will the web take you?</h1>
+      <p class="subtitle">One click. Pure discovery. Mild chaos.</p>
+
+      <button class="get-lost-btn" id="getLostBtn" aria-label="Get lost on a random website">
+        <span class="btn-glow"></span>
+        <span class="btn-text">Get Lost</span>
+        <span class="btn-pulse"></span>
+      </button>
+
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-value" id="lostCount">0</span>
+          <span class="stat-label">times lost</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <span class="stat-value" id="siteCount">0</span>
+          <span class="stat-label">curated sites</span>
+        </div>
+      </div>
+
+      <div class="deeper-badge" id="deeperBadge" hidden>
+        <span>✦ Deeper Web unlocked</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Loading overlay -->
+  <div class="loading-overlay" id="loadingOverlay" aria-live="polite" aria-hidden="true">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <p class="loading-phrase" id="loadingPhrase">Diving into the void…</p>
+    </div>
+  </div>
+
+  <!-- History drawer -->
+  <aside class="history-drawer" id="historyDrawer" aria-label="Recently visited sites" aria-hidden="true">
+    <div class="drawer-header">
+      <h2>History</h2>
+      <button class="icon-btn close-drawer" id="closeHistory" aria-label="Close history">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+    <div class="drawer-body" id="historyList">
+      <p class="empty-history">No journeys yet. Get lost.</p>
+    </div>
+  </aside>
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+
+  <!-- Settings modal -->
+  <div class="modal" id="settingsModal" aria-hidden="true" role="dialog" aria-labelledby="settingsTitle">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="settingsTitle">Settings</h2>
+        <button class="icon-btn" id="closeSettings" aria-label="Close settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <label class="setting-row">
+          <span>Open in new tab</span>
+          <input type="checkbox" id="newTabToggle" checked />
+          <span class="toggle"></span>
+        </label>
+        <label class="setting-row">
+          <span>Sound effects</span>
+          <input type="checkbox" id="soundToggle" checked />
+          <span class="toggle"></span>
+        </label>
+        <label class="setting-row">
+          <span>Deeper Web mode</span>
+          <input type="checkbox" id="deeperToggle" disabled />
+          <span class="toggle"></span>
+        </label>
+        <p class="setting-hint" id="deeperHint">Unlock after 10 jumps</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>Made for the curious · <span id="footerCount">0</span> sites waiting</p>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
