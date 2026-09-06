@@ -126,12 +126,38 @@ body {
   animation: glitch 0.4s ease;
 }
 
+.logo.glitching .logo-text {
+  animation: glitchText 0.45s steps(2) infinite;
+}
+
+.logo.glitching .logo-glitch {
+  opacity: 0.9 !important;
+  animation: glitchHard 0.45s steps(3) infinite;
+}
+
 @keyframes glitch {
   0%, 100% { transform: translate(0); }
   20% { transform: translate(-2px, 1px); }
   40% { transform: translate(2px, -1px); }
   60% { transform: translate(-1px, 2px); }
   80% { transform: translate(1px, -2px); }
+}
+
+@keyframes glitchText {
+  0% { transform: translate(0); filter: none; }
+  20% { transform: translate(-3px, 1px); filter: hue-rotate(90deg); }
+  40% { transform: translate(3px, -2px); filter: hue-rotate(-60deg); }
+  60% { transform: translate(-1px, 2px); filter: none; }
+  80% { transform: translate(2px, -1px); filter: hue-rotate(30deg); }
+  100% { transform: translate(0); }
+}
+
+@keyframes glitchHard {
+  0% { transform: translate(2px, -1px); clip-path: inset(0 0 60% 0); }
+  25% { transform: translate(-4px, 2px); clip-path: inset(40% 0 10% 0); }
+  50% { transform: translate(3px, 1px); clip-path: inset(10% 0 50% 0); }
+  75% { transform: translate(-2px, -2px); clip-path: inset(30% 0 20% 0); }
+  100% { transform: translate(0); clip-path: inset(0 0 50% 0); }
 }
 
 .header-controls {
