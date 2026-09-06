@@ -11,8 +11,8 @@
   --purple: #a855f7;
   --glow-cyan: 0 0 20px rgba(0, 240, 255, 0.4), 0 0 40px rgba(0, 240, 255, 0.15);
   --glow-magenta: 0 0 20px rgba(255, 0, 170, 0.35);
-  --font: 'Space Grotesk', system-ui, sans-serif;
-  --mono: 'JetBrains Mono', monospace;
+  --font: 'Google Sans', 'Product Sans', system-ui, -apple-system, sans-serif;
+  --mono: 'Google Sans', 'Product Sans', ui-monospace, monospace;
   --radius: 16px;
   --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -688,16 +688,76 @@ body {
   right: 0;
   z-index: 50;
   text-align: center;
-  padding: 1rem;
-  font-size: 0.75rem;
+  padding: 0.85rem 1rem 1.1rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
-  background: linear-gradient(to top, rgba(10, 10, 15, 0.9), transparent);
+  background: linear-gradient(to top, rgba(10, 10, 15, 0.95), transparent);
   pointer-events: none;
+}
+
+.footer-links,
+.footer-meta {
+  pointer-events: auto;
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+
+.footer-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer-links a:hover {
+  color: var(--cyan);
+}
+
+.footer-meta {
+  opacity: 0.9;
+}
+
+.footer-meta a.made-by {
+  color: var(--cyan);
+  text-decoration: none;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.footer-meta a.made-by:hover {
+  text-decoration: underline;
 }
 
 .footer span {
   color: var(--cyan);
   font-family: var(--mono);
+}
+
+.legal-content {
+  max-width: 520px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.legal-content .modal-body {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.legal-content .modal-body h3 {
+  color: var(--text);
+  font-size: 0.95rem;
+  margin: 1rem 0 0.4rem;
+}
+
+.legal-content .modal-body p {
+  margin-bottom: 0.6rem;
 }
 
 /* Mobile adjustments */

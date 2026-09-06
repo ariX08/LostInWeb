@@ -403,18 +403,27 @@
     updateUI();
     saveState();
 
-    // open after short delay for the moment of anticipation
-    const delay = 900 + Math.random() * 400;
-    setTimeout(() => {
-      loadingOverlay.classList.remove('active');
-      loadingOverlay.setAttribute('aria-hidden', 'true');
-
-      if (state.newTab) {
-        window.open(site.url, '_blank', 'noopener,noreferrer');
-      } else {
+    // Open immediately when new-tab is on (avoids popup blockers from delayed calls)
+    if (state.newTab) {
+      const win = window.open(site.url, '_blank', 'noopener,noreferrer');
+      // brief loading feedback even for new tab
+      setTimeout(() => {
+        loadingOverlay.classList.remove('active');
+        loadingOverlay.setAttribute('aria-hidden', 'true');
+      }, 700);
+      if (!win) {
+        // fallback if blocked
+        loadingOverlay.classList.remove('active');
         window.location.href = site.url;
       }
-    }, delay);
+    } else {
+      const delay = 900 + Math.random() * 300;
+      setTimeout(() => {
+        loadingOverlay.classList.remove('active');
+        loadingOverlay.setAttribute('aria-hidden', 'true');
+        window.location.href = site.url;
+      }, delay);
+    }
   }
 
   // ---------- UI updates ----------
@@ -426,19 +435,17 @@
     // mute icon
     muteBtn.classList.toggle('active', state.muted);
     const icon = $('#muteIcon');
-    if (icon) {
-      if (state.muted) {
-        icon.innerHTML = `
-          <path d="M11 5L6 9H2v6h4l5 4V5z"/>
-          <line x1="23" y1="9" x2="17" y2="15" stroke="currentColor" stroke-width="1.8"/>
-          <line x1="17" y1="9" x2="23" y2="15" stroke="currentColor" stroke-width="1.8"/>
-        `;
-      } else {
-        icon.innerHTML = `
-          <path d="M11 5L6 9H2v6h4l5 4V5z"/>
-          <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/>
-        `;
-      }
+    if (state.muted) {
+      icon.innerHTML = `
+        <path d="M11 5L6 9H2v6h4l5 4V5z"/>
+        <line x1="23" y1="9" x2="17" y2="15" stroke="currentColor" stroke-width="1.8"/>
+        <line x1="17" y1="9" x2="23" y2="15" stroke="currentColor" stroke-width="1.8"/>
+      `;
+    } else {
+      icon.innerHTML = `
+        <path d="M11 5L6 9H2v6h4l5 4V5z"/>
+        <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/>
+      `;
     }
 
     // toggles
@@ -633,11 +640,98 @@
       }
     });
     logo.addEventListener('mouseenter', () => {
-      playSoftHover();
+      unlockAudio();
+      playGlitch();
+      const glitchEl = logo.querySelector('.logo-glitch');
+      if (glitchEl) {
+        glitchEl.style.opacity = '0.7';
+        logo.classList.add('glitching');
+        setTimeout(() => {
+          glitchEl.style.opacity = '';
+          logo.classList.remove('glitching');
+        }, 350);
+      }
     });
 
     // Filter chips get sound after they are rendered
     // (handled inside renderFilters)
+
+    // Legal modals
+    const legalContent = {
+      security: {
+        title: 'Security',
+        body: `<h3>How we protect you</h3>
+          <p>LostInWeb is a static frontend application. No user accounts, no server-side storage of personal data, and no tracking pixels.</p>
+          <p>All preferences (history, counter, settings) are stored only in your browser’s localStorage and never leave your device.</p>
+          <p>External sites opened by “Get Lost” are third-party. We recommend using a modern browser with up-to-date security features and considering a content blocker for extra protection.</p>
+          <h3>Reporting issues</h3>
+          <p>If you discover a security concern, please contact the creator via the MADE BY ARITRA.DESIGN link in the footer.</p>`
+      },
+      privacy: {
+        title: 'Privacy Policy',
+        body: `<h3>What we collect</h3>
+          <p>LostInWeb does not collect, transmit, or sell personal data. There are no analytics, no cookies for tracking, and no third-party advertising scripts.</p>
+          <h3>Local storage</h3>
+          <p>We store only the following on your device: visit counter, recent history of sites you chose to open, and UI preferences (mute, new-tab toggle, deeper mode). You can clear this at any time by clearing site data in your browser.</p>
+          <h3>Third-party sites</h3>
+          <p>When you click “Get Lost”, you leave LostInWeb and enter a different website governed by that site’s own privacy policy.</p>
+          <p>Last updated: September 2026</p>`
+      },
+      terms: {
+        title: 'Terms & Conditions',
+        body: `<h3>Use of the service</h3>
+          <p>LostInWeb is provided free of charge for personal, non-commercial curiosity and discovery. You may use it as long as you do not attempt to disrupt the experience for others or scrape the curated list at scale for commercial purposes.</p>
+          <h3>Disclaimer</h3>
+          <p>The curated links are selected for interest and availability at the time of compilation. We do not control third-party websites and are not responsible for their content, availability, or any harm that may result from visiting them. Use at your own risk.</p>
+          <h3>Intellectual property</h3>
+          <p>The LostInWeb interface, design, and original code are © 2026 Aritra / ARITRA.DESIGN. The linked third-party sites remain the property of their respective owners.</p>
+          <p>Last updated: September 2026</p>`
+      },
+      cookies: {
+        title: 'Cookies',
+        body: `<h3>Do we use cookies?</h3>
+          <p>LostInWeb itself does not set any cookies. Preferences and history are stored exclusively in localStorage.</p>
+          <h3>Third-party cookies</h3>
+          <p>When you open an external website via “Get Lost”, that site may set its own cookies according to its own policies. We have no control over those.</p>
+          <p>You can manage or block cookies through your browser settings at any time.</p>
+          <p>Last updated: September 2026</p>`
+      }
+    };
+
+    const legalModal = $('#legalModal');
+    const legalTitle = $('#legalTitle');
+    const legalBody = $('#legalBody');
+    const closeLegal = $('#closeLegal');
+
+    document.querySelectorAll('[data-modal]').forEach((link) => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const key = link.dataset.modal;
+        if (!legalContent[key]) return;
+        playClick();
+        legalTitle.textContent = legalContent[key].title;
+        legalBody.innerHTML = legalContent[key].body;
+        legalModal.classList.add('open');
+        legalModal.setAttribute('aria-hidden', 'false');
+      });
+    });
+
+    if (closeLegal) {
+      closeLegal.addEventListener('click', () => {
+        playClick();
+        legalModal.classList.remove('open');
+        legalModal.setAttribute('aria-hidden', 'true');
+      });
+    }
+    if (legalModal) {
+      legalModal.addEventListener('click', (e) => {
+        if (e.target === legalModal) {
+          playClick();
+          legalModal.classList.remove('open');
+          legalModal.setAttribute('aria-hidden', 'true');
+        }
+      });
+    }
   }
 
   function closeAll() {
@@ -646,6 +740,11 @@
     drawerBackdrop.classList.remove('visible');
     settingsModal.classList.remove('open');
     settingsModal.setAttribute('aria-hidden', 'true');
+    const legalModal = $('#legalModal');
+    if (legalModal) {
+      legalModal.classList.remove('open');
+      legalModal.setAttribute('aria-hidden', 'true');
+    }
   }
 
   // ---------- Init ----------
