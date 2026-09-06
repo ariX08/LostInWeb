@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="LostInWeb — Instantly get lost in a carefully curated random interesting website. Pure discovery and mild chaos." />
   <title>LostInWeb — Get Lost</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.cdnfonts.com/css/google-sans" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -136,8 +134,35 @@
 
   <!-- Footer -->
   <footer class="footer">
-    <p>Made for the curious · <span id="footerCount">0</span> sites waiting</p>
+    <div class="footer-links">
+      <a href="#" id="linkSecurity" data-modal="security">Security</a>
+      <span>·</span>
+      <a href="#" id="linkPrivacy" data-modal="privacy">Privacy Policy</a>
+      <span>·</span>
+      <a href="#" id="linkTerms" data-modal="terms">Terms & Conditions</a>
+      <span>·</span>
+      <a href="#" id="linkCookies" data-modal="cookies">Cookies</a>
+    </div>
+    <p class="footer-meta">
+      <span id="footerCount">0</span> sites · © 2026
+      · <a href="https://arix.faltuworkonly91.workers.dev/" target="_blank" rel="noopener noreferrer" class="made-by">MADE BY ARITRA.DESIGN</a>
+    </p>
   </footer>
+
+  <!-- Legal modals -->
+  <div class="modal legal-modal" id="legalModal" aria-hidden="true" role="dialog">
+    <div class="modal-content legal-content">
+      <div class="modal-header">
+        <h2 id="legalTitle">Privacy Policy</h2>
+        <button class="icon-btn" id="closeLegal" aria-label="Close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" id="legalBody"></div>
+    </div>
+  </div>
 
   <script src="data.js"></script>
   <script src="app.js"></script>
