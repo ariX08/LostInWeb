@@ -16,6 +16,8 @@
     activeCategory: 'all',
     lastIndex: -1,
     audioCtx: null,
+    musicStarted: false,
+    musicNodes: null, // { osc1, osc2, noise, gain, lfo, filter }
   };
 
   // ---------- DOM ----------
@@ -75,7 +77,7 @@
     }
   }
 
-  // ---------- Audio (subtle whoosh + click) ----------
+  // ---------- Audio system ----------
   function ensureAudio() {
     if (!state.audioCtx) {
       state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -83,52 +85,218 @@
     if (state.audioCtx.state === 'suspended') {
       state.audioCtx.resume();
     }
+    return state.audioCtx;
   }
 
-  function playWhoosh() {
-    if (state.muted) return;
-    ensureAudio();
-    const ctx = state.audioCtx;
+  // Soft ambient cyber drone (background music)
+  function startBackgroundMusic() {
+    if (state.musicStarted || state.muted) return;
+    const ctx = ensureAudio();
+    if (!ctx) return;
+
     const now = ctx.currentTime;
 
-    // soft noise burst
-    const bufferSize = ctx.sampleRate * 0.4;
+    // Main drone oscillators (slightly detuned for thickness)
+    const osc1 = ctx.createOscillator();
+    osc1.type = 'sine';
+    osc1.frequency.value = 55; // A1
+
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.value = 55.3;
+
+    const osc3 = ctx.createOscillator();
+    osc3.type = 'triangle';
+    osc3.frequency.value = 110; // octave
+
+    // Slow LFO for movement
+    const lfo = ctx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.07;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 8;
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc1.frequency);
+    lfoGain.connect(osc2.frequency);
+
+    // Soft noise bed
+    const bufferSize = ctx.sampleRate * 2;
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * 0.15;
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+    noise.loop = true;
+
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'lowpass';
+    noiseFilter.frequency.value = 400;
+    noiseFilter.Q.value = 0.5;
+
+    // Master music gain (very quiet)
+    const musicGain = ctx.createGain();
+    musicGain.gain.value = 0.035;
+
+    // Gentle high shelf to keep it dark
+    const shelf = ctx.createBiquadFilter();
+    shelf.type = 'lowshelf';
+    shelf.frequency.value = 200;
+    shelf.gain.value = 4;
+
+    osc1.connect(shelf);
+    osc2.connect(shelf);
+    osc3.connect(shelf);
+    noise.connect(noiseFilter);
+    noiseFilter.connect(shelf);
+    shelf.connect(musicGain);
+    musicGain.connect(ctx.destination);
+
+    osc1.start(now);
+    osc2.start(now);
+    osc3.start(now);
+    noise.start(now);
+    lfo.start(now);
+
+    state.musicNodes = { osc1, osc2, osc3, noise, lfo, musicGain, lfoGain };
+    state.musicStarted = true;
+  }
+
+  function stopBackgroundMusic() {
+    if (!state.musicNodes) return;
+    const { osc1, osc2, osc3, noise, lfo, musicGain } = state.musicNodes;
+    const ctx = state.audioCtx;
+    const now = ctx.currentTime;
+    musicGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
+    setTimeout(() => {
+      try {
+        osc1.stop();
+        osc2.stop();
+        osc3.stop();
+        noise.stop();
+        lfo.stop();
+      } catch (_) {}
+      state.musicNodes = null;
+      state.musicStarted = false;
+    }, 900);
+  }
+
+  function setMusicMuted(muted) {
+    if (!state.musicNodes) return;
+    const now = state.audioCtx.currentTime;
+    state.musicNodes.musicGain.gain.exponentialRampToValueAtTime(
+      muted ? 0.0001 : 0.035,
+      now + 0.4
+    );
+  }
+
+  // Generic short sound helpers
+  function playTone({ freq = 440, type = 'sine', duration = 0.12, volume = 0.08, slideTo = null }) {
+    if (state.muted) return;
+    const ctx = ensureAudio();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, now);
+    if (slideTo) {
+      osc.frequency.exponentialRampToValueAtTime(slideTo, now + duration * 0.9);
+    }
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + duration + 0.05);
+  }
+
+  function playNoiseBurst({ duration = 0.25, volume = 0.1, filterFreq = 800, filterType = 'bandpass' }) {
+    if (state.muted) return;
+    const ctx = ensureAudio();
+    const now = ctx.currentTime;
+    const bufferSize = Math.floor(ctx.sampleRate * duration);
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.25));
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
     }
-    const noise = ctx.createBufferSource();
-    noise.buffer = buffer;
-
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
     const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(800, now);
-    filter.frequency.exponentialRampToValueAtTime(200, now + 0.35);
-    filter.Q.value = 0.8;
-
+    filter.type = filterType;
+    filter.frequency.setValueAtTime(filterFreq, now);
+    filter.frequency.exponentialRampToValueAtTime(filterFreq * 0.3, now + duration);
     const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.12, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
-
-    noise.connect(filter);
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    src.connect(filter);
     filter.connect(gain);
     gain.connect(ctx.destination);
-    noise.start(now);
-    noise.stop(now + 0.4);
+    src.start(now);
+    src.stop(now + duration + 0.05);
+  }
 
-    // soft click
-    const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(420, now);
-    osc.frequency.exponentialRampToValueAtTime(180, now + 0.08);
-    const g2 = ctx.createGain();
-    g2.gain.setValueAtTime(0.08, now);
-    g2.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-    osc.connect(g2);
-    g2.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.12);
+  // Specific SFX
+  function playWhoosh() {
+    playNoiseBurst({ duration: 0.38, volume: 0.11, filterFreq: 900 });
+    playTone({ freq: 380, type: 'sine', duration: 0.12, volume: 0.07, slideTo: 160 });
+  }
+
+  function playClick() {
+    playTone({ freq: 720, type: 'triangle', duration: 0.06, volume: 0.06, slideTo: 420 });
+  }
+
+  function playSoftHover() {
+    playTone({ freq: 880, type: 'sine', duration: 0.05, volume: 0.025 });
+  }
+
+  function playToggle() {
+    playTone({ freq: 520, type: 'square', duration: 0.07, volume: 0.04, slideTo: 340 });
+  }
+
+  function playDrawer() {
+    playNoiseBurst({ duration: 0.22, volume: 0.07, filterFreq: 350, filterType: 'lowpass' });
+    playTone({ freq: 220, type: 'sine', duration: 0.18, volume: 0.05, slideTo: 140 });
+  }
+
+  function playFilterChip() {
+    playTone({ freq: 640 + Math.random() * 120, type: 'triangle', duration: 0.08, volume: 0.045 });
+  }
+
+  // Digital glitch for the logo
+  function playGlitch() {
+    if (state.muted) return;
+    const ctx = ensureAudio();
+    const now = ctx.currentTime;
+
+    // Rapid random pitch blips
+    for (let i = 0; i < 6; i++) {
+      const t = now + i * 0.035;
+      const osc = ctx.createOscillator();
+      osc.type = i % 2 === 0 ? 'square' : 'sawtooth';
+      const f = 200 + Math.random() * 1800;
+      osc.frequency.setValueAtTime(f, t);
+      osc.frequency.exponentialRampToValueAtTime(f * (0.4 + Math.random() * 0.8), t + 0.04);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.06, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.06);
+    }
+
+    // Harsh noise burst
+    playNoiseBurst({ duration: 0.18, volume: 0.09, filterFreq: 2400, filterType: 'highpass' });
+  }
+
+  // First user gesture unlocks audio + starts music
+  function unlockAudio() {
+    ensureAudio();
+    if (!state.musicStarted && !state.muted) {
+      startBackgroundMusic();
+    }
   }
 
   // ---------- Particles ----------
@@ -335,77 +503,141 @@
 
     categoryFilters.querySelectorAll('.filter-chip').forEach((btn) => {
       btn.addEventListener('click', () => {
+        playFilterChip();
         state.activeCategory = btn.dataset.cat;
         renderFilters();
       });
+      btn.addEventListener('mouseenter', () => playSoftHover());
     });
   }
 
   // ---------- Event listeners ----------
   function bindEvents() {
-    getLostBtn.addEventListener('click', getLost);
+    // Unlock audio on any first interaction
+    const unlockOnce = () => {
+      unlockAudio();
+      document.removeEventListener('pointerdown', unlockOnce);
+      document.removeEventListener('keydown', unlockOnce);
+    };
+    document.addEventListener('pointerdown', unlockOnce, { once: true });
+    document.addEventListener('keydown', unlockOnce, { once: true });
+
+    getLostBtn.addEventListener('click', () => {
+      unlockAudio();
+      getLost();
+    });
+    getLostBtn.addEventListener('mouseenter', () => playSoftHover());
 
     // keyboard
     document.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault();
+        unlockAudio();
         getLost();
       }
       if (e.code === 'Escape') {
         closeAll();
+        playClick();
       }
     });
 
     // history
     historyBtn.addEventListener('click', () => {
+      unlockAudio();
+      playDrawer();
       historyDrawer.classList.add('open');
       historyDrawer.setAttribute('aria-hidden', 'false');
       drawerBackdrop.classList.add('visible');
     });
-    closeHistory.addEventListener('click', closeAll);
-    drawerBackdrop.addEventListener('click', closeAll);
+    historyBtn.addEventListener('mouseenter', () => playSoftHover());
+
+    closeHistory.addEventListener('click', () => {
+      playClick();
+      closeAll();
+    });
+    drawerBackdrop.addEventListener('click', () => {
+      playClick();
+      closeAll();
+    });
 
     // mute
     muteBtn.addEventListener('click', () => {
+      unlockAudio();
       state.muted = !state.muted;
+      setMusicMuted(state.muted);
+      if (!state.muted && !state.musicStarted) {
+        startBackgroundMusic();
+      }
+      playClick();
       updateUI();
       saveState();
     });
+    muteBtn.addEventListener('mouseenter', () => playSoftHover());
 
     // settings
     settingsBtn.addEventListener('click', () => {
+      unlockAudio();
+      playClick();
       settingsModal.classList.add('open');
       settingsModal.setAttribute('aria-hidden', 'false');
     });
-    closeSettings.addEventListener('click', closeAll);
+    settingsBtn.addEventListener('mouseenter', () => playSoftHover());
+
+    closeSettings.addEventListener('click', () => {
+      playClick();
+      closeAll();
+    });
     settingsModal.addEventListener('click', (e) => {
-      if (e.target === settingsModal) closeAll();
+      if (e.target === settingsModal) {
+        playClick();
+        closeAll();
+      }
     });
 
     newTabToggle.addEventListener('change', () => {
+      playToggle();
       state.newTab = newTabToggle.checked;
       saveState();
     });
     soundToggle.addEventListener('change', () => {
       state.muted = !soundToggle.checked;
+      setMusicMuted(state.muted);
+      if (!state.muted && !state.musicStarted) {
+        startBackgroundMusic();
+      }
+      playToggle();
       updateUI();
       saveState();
     });
     deeperToggle.addEventListener('change', () => {
       if (state.lostCount < 10) return;
+      playToggle();
       state.deeperMode = deeperToggle.checked;
       updateUI();
       saveState();
     });
 
-    // logo click = mild easter
+    // Logo — glitch sound + visual
     logo.addEventListener('click', () => {
-      logo.querySelector('.logo-glitch').style.opacity = '0.8';
-      setTimeout(() => {
-        logo.querySelector('.logo-glitch').style.opacity = '';
-      }, 400);
+      unlockAudio();
+      playGlitch();
+      const glitchEl = logo.querySelector('.logo-glitch');
+      if (glitchEl) {
+        glitchEl.style.opacity = '0.85';
+        logo.classList.add('glitching');
+        setTimeout(() => {
+          glitchEl.style.opacity = '';
+          logo.classList.remove('glitching');
+        }, 450);
+      }
     });
+    logo.addEventListener('mouseenter', () => {
+      playSoftHover();
+    });
+
+    // Filter chips get sound after they are rendered
+    // (handled inside renderFilters)
   }
 
   function closeAll() {
